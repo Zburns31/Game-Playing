@@ -33,7 +33,7 @@ class OpenMoveEvalFn:
 
 
 # Algorithm for finding the best move
-def minimax(player, game, time_left, depth, my_turn=True):
+def minimax(player, game, time_left, depth, my_turn=True, debug=False, output=None):
     """Implementation of the minimax algorithm.
     Args:
         player (CustomPlayer): This is the instantiation of CustomPlayer()
@@ -62,7 +62,6 @@ def minimax(player, game, time_left, depth, my_turn=True):
     5. Set best_move, best_value to be highest utility moves based on forecasted value
 
     """
-    player.count += 1
 
     # Determine whose turn it is
     if my_turn:
@@ -73,14 +72,11 @@ def minimax(player, game, time_left, depth, my_turn=True):
         ai_player = game.get_inactive_player()
         cpu_player = game.get_active_player()
 
-    ai_moves = game.get_player_moves(my_player=ai_player)
-    cpu_moves = game.get_opponent_moves(my_player=ai_player)
-
     # Handle time running out
     # TODO
-    # print(f"Time left {time_left()}")
-    #     if time_left() < 10:
-    #         return None, None
+    if time_left() < 5:
+        # print(f"Move timing out. Selecting currently best found move")
+        return None, ai_player.utility(game, my_turn)
 
     ####################################################################################################
     # Search the game tree
@@ -97,75 +93,60 @@ def minimax(player, game, time_left, depth, my_turn=True):
         max_value = float("-inf")
         best_move = None
 
-        #         # Get possible moves of the CustomPlayer
-        #         ai_moves = game.get_player_moves(my_player=current_player)
+        # Get possible moves of the CustomPlayer
+        my_moves = game.get_active_moves()
 
-        for move in ai_moves:
-            #             print(f"Possible Move: {move}")
+        for move in my_moves:
 
             # Check all possible moves to see if a winner can be found
             new_board_state, is_over, winner = game.forecast_move(move)
 
             # Check to see if the game is ended while it is the AI's turn and after the next move
-            next_moves_possible = new_board_state.get_player_moves(my_player=ai_player)
+            next_moves_possible = new_board_state.get_active_moves()
 
             if is_over and len(next_moves_possible) == 0:
-                #                 print(f"AI Player: Game is over with move {move}")
                 return move, float("inf")
 
             else:
-                #                 print(f"Searching game tree for move {move}")
                 # Recursively search through the game tree
                 forecasted_move, forecasted_value = minimax(
-                    ai_player, new_board_state, time_left, depth=depth - 1, my_turn=False
+                    player, new_board_state, time_left, depth=depth - 1, my_turn=not my_turn
                 )
 
                 if forecasted_value > max_value:
-                    #                     print(f"Swapping Max Value {max_value} with forecasted value {forecasted_value} with move {forecasted_move}")
                     max_value = forecasted_value
                     best_move = move
-                    # print(f"Found new best move: {best_move} with value {max_value}")
 
-        #         print(f"Returning Best Move {best_move} with value {max_value}")
-        #         print()
         return best_move, max_value
 
     else:  # Opponents turn
-
         # Initialize values
         min_value = float("inf")
         best_move = None
 
-        #         # Get possible moves of the CustomPlayer
-        #         cpu_moves = game.get_opponent_moves(my_player=current_player)
+        # Get possible moves of the CustomPlayer
+        cpu_moves = game.get_active_moves()
 
         for move in cpu_moves:
-            #             print(f"Possible Move: {move}")
 
             # Check all possible moves to see if a winner can be found
             new_board_state, is_over, winner = game.forecast_move(move)
 
             # Check to see if the game is ended while it is the opponents turn and after the next move
-            next_moves_possible = new_board_state.get_opponent_moves(my_player=ai_player)
+            next_moves_possible = new_board_state.get_active_moves()
 
             if is_over and len(next_moves_possible) == 0:
-                #                 print(f"Opponent Player: Game is over with move {move}")
                 return move, float("-inf")
             else:
-                #                 print(f"Searching game tree for move {move}")
                 # Recursively search through the game tree
                 forecasted_move, forecasted_value = minimax(
-                    ai_player, new_board_state, time_left, depth=depth - 1, my_turn=True
+                    player, new_board_state, time_left, depth=depth - 1, my_turn=not my_turn
                 )
 
                 if forecasted_value < min_value:
-                    #                     print(f"Swapping Max Value {min_value} with forecasted value {forecasted_value} with move {forecasted_move}")
                     min_value = forecasted_value
                     best_move = move
-                    print(f"Finding Opponents best move: {best_move} with value {min_value}")
 
-        #         print(f"Returning Best Move {best_move} with value {min_value}")
-        #         print()
         return best_move, min_value
 
 
@@ -176,7 +157,7 @@ class CustomAIPlayer:
     You must finish and test this player to make sure it properly
     uses minimax and alpha-beta to return a good move."""
 
-    def __init__(self, search_depth=3, eval_fn=OpenMoveEvalFn()):
+    def __init__(self, search_depth=3, eval_fn=OpenMoveEvalFn(), output=None):
         """Initializes your player.
 
         if you find yourself with a superior eval function, update the default
@@ -188,6 +169,7 @@ class CustomAIPlayer:
         """
         self.eval_fn = eval_fn
         self.search_depth = search_depth
+        self.output = output
         self.count = 0
 
     def move(self, game, time_left):
@@ -204,11 +186,20 @@ class CustomAIPlayer:
         Returns:
             tuple: ((int,int),(int,int),(int,int)): Your best move
         """
-        print("Calculating best move...")
+        with self.output:
+            self.output.append_stdout("Calculating best move...")
+        # print("Calculating best move...")
         best_move, utility = minimax(self, game, time_left, depth=self.search_depth)
-        print(f"AI Player: Moving {best_move} with value {utility}")
-        print(f"AI Player searched through {self.count} game states to find it's next move")
-        print("---------------------------")
+
+        with self.output:
+            self.output.append_stdout(f"AI Player: Moving {best_move} with value {utility} \n")
+            self.output.append_stdout(
+                f"AI Player searched through {self.count} game states to find it's next move \n"
+            )
+
+        # print(f"AI Player: Moving {best_move} with value {utility}")
+        # print(f"AI Player searched through {self.count} game states to find it's next move")
+        # print("---------------------------")
         self.count = 0
         return best_move
 

@@ -86,8 +86,8 @@ class InteractiveGame():
         self.show_legal_moves = show_legal_moves
         self.__click_count = 0
         self.__move = []
-        self.gridb = create_board_gridbox(self.game, 
-                                          self.show_legal_moves, 
+        self.gridb = create_board_gridbox(self.game,
+                                          self.show_legal_moves,
                                           click_callback=self.select_move)
         self.visualized_state = None
         self.opponent = opponent
@@ -109,18 +109,18 @@ class InteractiveGame():
             def curr_time_millis():
                 return 1000 * resource.getrusage(resource.RUSAGE_SELF).ru_utime
         move_start = curr_time_millis()
-        
+
         def time_left(time_limit = 1000):
             # print("Limit: "+str(time_limit) +" - "+str(curr_time_millis()-move_start))
             return time_limit - (curr_time_millis() - move_start)
-        
+
         self.__move.append((b.x, b.y))
         with self.output_section:
             print(f"Move {self.__click_count+1}: {(b.x, b.y)}")
         if self.__click_count < 2:
             self.__click_count += 1
             return
-        
+
         if self.game_is_over:
             with self.output_section:
                 print('The game is over!')
@@ -170,9 +170,9 @@ class ReplayGame():
         self.generate_board_state_history()
         self.visualized_state = None
         self.output_section = widgets.Output(layout={'border': '1px solid black'})
-    
+
     def setup_new_board(self,):
-        return Board(player_1=self.game.__player_1__, 
+        return Board(player_1=self.game.__player_1__,
                      player_2=self.game.__player_2__,
                      width=self.width,
                      height=self.height)
@@ -193,7 +193,7 @@ class ReplayGame():
                     return False
         return True
 
-    def generate_board_state_history(self,):        
+    def generate_board_state_history(self,):
         for move_pair in self.move_history:
             for move in move_pair:
                 self.new_board.__apply_move__(move[0])
@@ -202,13 +202,13 @@ class ReplayGame():
                 self.board_history.append((copy.deepcopy(board_vis_state), copy.deepcopy(board_state)))
         assert self.equal_board_states(self.game.get_state(), self.new_board.get_state()), \
         "End game state based of move history is not consistent with state of the 'game' object."
-    
+
     def get_board_state(self, x):
         """You can use this state to with game.set_state() to replicate same Board instance."""
         self.output_section.clear_output()
         with self.output_section:
             display(self.visualized_state)
-    
+
     def show_board(self):
         # Show slider for move selection
         input_move_i = widgets.IntText(layout = Layout(width='auto'))
@@ -218,12 +218,12 @@ class ReplayGame():
                                           continuous_update=False,
                                           layout = Layout(width='auto')
                                          )
-        mylink = widgets.link((input_move_i, 'value'), (slider_move_i, 'value'))   
+        mylink = widgets.link((input_move_i, 'value'), (slider_move_i, 'value'))
         slider = VBox([input_move_i,interactive(self.update_board_gridbox, move_i=slider_move_i)])
-        
+
         get_state_button = Button(description='get board state')
         get_state_button.on_click(self.get_board_state)
-        
+
         grid = GridspecLayout(4, 6)#, width='auto')
         #Left side
         grid[:3, :-3] = self.gridb
