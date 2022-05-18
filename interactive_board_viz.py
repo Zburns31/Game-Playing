@@ -10,7 +10,7 @@ from numpy import isin
 
 from isolation import Board
 from test_players import Player, RandomPlayer, HumanPlayer
-from custom_player import CustomAIPlayer
+from custom_player import CustomPlayer
 
 import time
 import platform
@@ -86,33 +86,27 @@ def create_board_gridbox(game, show_legal_moves, click_callback=None):
     return grid_layout
 
 
-# def create_board_gridbox_ai(game, show_legal_moves, click_callback=None):
-#     h, w = game.height, game.width
-#     board_state = get_viz_board_state(game, show_legal_moves)
-
-#     grid_layout = GridspecLayout(
-#         n_rows=h,
-#         n_columns=w,
-#         grid_gap="2px 2px",
-#         width="480px",
-#         height="480px",
-#         justify_content="center",
-#     )
-#     for r in range(h):
-#         for c in range(w):
-#             cell = create_cell(board_state[r][c], grid_loc=(r, c), click_callback=click_callback)
-#             grid_layout[r, c] = cell
-
-#     return grid_layout
-
-
 class PlayInteractiveGame:
     """This class is used to play the game interactively (only works in jupyter)"""
 
     def __init__(
-        self, player1=Player("Player1"), opponent=Player("Player2"), show_legal_moves=False
+        self,
+        player1=Player("Player1"),
+        opponent=Player("Player2"),
+        show_legal_moves=False,
+        output_section=widgets.Output(
+            layout={
+                "border": "1px solid black",
+                "overflow_y": "auto",
+                "height": "80px",
+                "width": "480px",
+            }
+        ),
     ):
+        self.player1 = player1
+        self.opponent = opponent
         self.game = Board(player1, opponent)
+        self.output_section = output_section
         self.width = self.game.width
         self.height = self.game.height
         self.show_legal_moves = show_legal_moves
@@ -123,30 +117,15 @@ class PlayInteractiveGame:
             self.game, self.show_legal_moves, click_callback=self.callback_func
         )
         self.visualized_state = None
-        self.cpu = player1
-        self.opponent = opponent
-        self.output_section = widgets.Output(layout={"border": "1px solid black"})
         self.game_is_over = False
 
-        self.start_button = self.create_start_button()
-        self.start_button_output = Output()
-
-        display(self.gridb)
-        display(self.output_section)
-        display(self.start_button, self.start_button_output)
-        # print(self.callback_func)
-
-    def on_button_click(self, b):
-        with self.start_button_output:
-            print("Game Starting Between CustomAI and Random Players")
-
-            self.run_cpu_ai_game()
-
-    def create_start_button(self):
-        button = Button(description="Start", layout=Layout(width="100", height="50"))
-
-        button.on_click(self.on_button_click)
-        return button
+    def null_callback(self, b):
+        """ Initial callback function before player options are set
+        """
+        # global output section widget
+        with out:
+            output = "Please Select Players first \n"
+            out.append_stdout(output)
 
     def select_callback_func(self, player1, player2):
         """ Function to determine which callback function to use based on the type of players
@@ -154,32 +133,50 @@ class PlayInteractiveGame:
         """
 
         if isinstance(player1, Player) and isinstance(player2, RandomPlayer):
-            print(f"Human vs Random Player")
+            #             print(f"Human vs Random Player")
             return self.select_move
 
-        elif isinstance(player1, RandomPlayer) and isinstance(player2, CustomAIPlayer):
-            return self.run_cpu_ai_game
+        elif isinstance(player1, RandomPlayer) and isinstance(player2, CustomPlayer):
+            with self.output_section:
+                return None
 
         elif isinstance(player1, RandomPlayer) and isinstance(player2, RandomPlayer):
             raise NotImplementedError("Random vs Random not implemented")
 
+        elif isinstance(player1, RandomPlayer) and isinstance(player2, Player):
+            raise NotImplementedError("Random (P1) vs Human (P2) not implemented")
+
         elif isinstance(player1, Player) and isinstance(player2, Player):
+            # Human Vs. Human
             return self.select_move
+
+        elif not player1 and not player2:
+            return self.null_callback
+
+        else:
+            return None
 
     def __reset_turn(self):
         self.__click_count = 0
         self.__move = []
-        self.output_section.clear_output()
+        with self.output_section:
+            self.output_section.append_stdout("-" * 50 + "\n")
 
-    def run_cpu_ai_game(self):
+    #         self.output_section.clear_output()
+
+    def run_cpu_ai_game(self, run_game=False):
         """ Function to run a game against the Random CPU and Custom AI Agent
         """
-        # counter = 0
-        while not self.game_is_over:
-            # counter += 1
-            self.select_custom_move()
-            time.sleep(2.5)
-            print(f"Next Move")
+        if run_game:
+            # counter = 0
+            while not self.game_is_over:
+                # counter += 1
+                with out:
+                    out.append_stdout("Computing Best Move for AI Agent \n")
+                self.select_custom_move()
+                time.sleep(2.5)
+
+    #                 print(f"Next Move")
 
     def select_custom_move(self):
 
@@ -200,10 +197,14 @@ class PlayInteractiveGame:
             return time_limit - (curr_time_millis() - move_start)
 
         active_player = self.game.get_active_player()
+        #         self.output_section.append_stdout(f"Active Players Turn: {active_player}")
+
         if isinstance(active_player, RandomPlayer):
-            print("Random Player's Turn")
-        elif isinstance(active_player, CustomAIPlayer):
-            print("Custom AI Player's Turn")
+            self.output_section.append_stdout("Random Player's Turn \n")
+
+        elif isinstance(active_player, CustomPlayer):
+            self.output_section.append_stdout("Custom AI Player's Turn \n")
+
             start = time.time()
 
         ############
@@ -229,7 +230,7 @@ class PlayInteractiveGame:
                 self.gridb[r, c].style = new_style
         self.__reset_turn()
 
-        if isinstance(active_player, CustomAIPlayer):
+        if isinstance(active_player, CustomPlayer):
             end = time.time()
             print(f"Run time to compute move: {end - start}")
 
@@ -250,17 +251,23 @@ class PlayInteractiveGame:
             # print("Limit: "+str(time_limit) +" - "+str(curr_time_millis()-move_start))
             return time_limit - (curr_time_millis() - move_start)
 
+        global ig
+        if isinstance(ig.player1, HumanPlayer) and isinstance(ig.opponent, HumanPlayer):
+            with ig.output_section:
+                out.append_stdout("Human Vs. Human")
+
         self.__move.append((b.x, b.y))
-        # print(f"Appending move {b.x}, {b.y}")
         with self.output_section:
-            print(f"Move {self.__click_count+1}: {(b.x, b.y)}")
+            self.output_section.append_stdout(f"Move {self.__click_count + 1}: {b.x}, {b.y} \n")
+
         if self.__click_count < 2:
             self.__click_count += 1
             return
 
+        #         self.output_section.append_stdout("Test1")
         if self.game_is_over:
             with self.output_section:
-                print("The game is over!")
+                self.output_section.append_stdout("The game is over! \n")
             return
         ### swap move workaround ###
         # find if current location is in the legal moves
@@ -271,28 +278,44 @@ class PlayInteractiveGame:
             output = f"move {self.__move} is illegal!"
             self.__reset_turn()
             with self.output_section:
-                print(output)
+                self.output_section.append_stdout(output)
             return
         else:
             # there is only one move in swap isolation game
             self.__move = legal_moves[0]
+
+        #         self.output_section.append_stdout("Test2")
         ### swap move workaround end ###
         self.game_is_over, winner = self.game.__apply_move__(self.__move)
         if (not self.game_is_over) and (type(self.opponent) != Player):
             opponents_legal_moves = self.game.get_active_moves()
             opponent_move = self.opponent.move(self.game, time_left=time_left)
+
             assert (
                 opponent_move in opponents_legal_moves
             ), f"Opponents move {opponent_move} is not in list of legal moves {opponents_legal_moves}"
+
             self.game_is_over, winner = self.game.__apply_move__(opponent_move)
+
+        #         self.output_section.append_stdout("Test3")
         if self.game_is_over:
-            print(f"Game is over, the winner is: {winner}")
+            #             print(f"Game is over, the winner is: {winner} \n")
+            self.output_section.append_stdout(f"Game is over, the winner is: {winner} \n")
+
         board_vis_state = get_viz_board_state(self.game, self.show_legal_moves)
         for r in range(self.height):
             for c in range(self.width):
                 new_name, new_style = get_details(board_vis_state[r][c])
                 self.gridb[r, c].description = new_name
                 self.gridb[r, c].style = new_style
+
+        if self.game_is_over:
+            # Remove callback functions from buttons
+            for r in range(self.height):
+                for c in range(self.width):
+                    self.gridb[r, c].on_click(None)
+                return
+        # Reset turn and clear output state for next players turn
         self.__reset_turn()
 
 

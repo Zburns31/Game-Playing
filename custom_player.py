@@ -1,37 +1,3 @@
-# Heuristic for evluation of the board state
-class OpenMoveEvalFn:
-    def score(self, game, my_player=None):
-        """Score the current game state
-        Evaluation function that outputs a score equal to how many
-        moves are open for AI player on the board minus how many moves
-        are open for Opponent's player on the board.
-
-        Note:
-            If you think of better evaluation function, do it in CustomEvalFn below.
-
-            Args
-                game (Board): The board and game state.
-                my_player (Player object): This specifies which player you are.
-
-            Returns:
-                float: The current state's score. MyMoves-OppMoves.
-
-            """
-        # Simple crude heuristic which favours the number of possible moves our AI has in comparison
-        # to the other player. CustomPlayer is always trying to maximize this value
-        # and RandomPlayer is trying to minimimize
-        if my_player:
-
-            num_active_moves_my_player = game.get_player_moves(my_player=my_player)
-            num_active_moves_opponent = game.get_opponent_moves(my_player=my_player)
-
-        else:
-            num_active_moves_my_player = game.get_opponent_moves(my_player=my_player)
-            num_active_moves_opponent = game.get_player_moves(my_player=my_player)
-
-        return len(num_active_moves_my_player) - len(num_active_moves_opponent)
-
-
 # Algorithm for finding the best move
 def minimax(player, game, time_left, depth, my_turn=True, debug=False, output=None):
     """Implementation of the minimax algorithm.
@@ -97,6 +63,7 @@ def minimax(player, game, time_left, depth, my_turn=True, debug=False, output=No
         my_moves = game.get_active_moves()
 
         for move in my_moves:
+            player.count += 1
 
             # Check all possible moves to see if a winner can be found
             new_board_state, is_over, winner = game.forecast_move(move)
@@ -150,14 +117,13 @@ def minimax(player, game, time_left, depth, my_turn=True, debug=False, output=No
         return best_move, min_value
 
 
-class CustomAIPlayer:
-    # TODO: finish this class!
+class CustomPlayer:
     """Player that chooses a move using your evaluation function
     and a minimax algorithm with alpha-beta pruning.
     You must finish and test this player to make sure it properly
     uses minimax and alpha-beta to return a good move."""
 
-    def __init__(self, search_depth=3, eval_fn=OpenMoveEvalFn(), output=None):
+    def __init__(self, eval_fn=None, search_depth=3, output=None):
         """Initializes your player.
 
         if you find yourself with a superior eval function, update the default
@@ -187,7 +153,7 @@ class CustomAIPlayer:
             tuple: ((int,int),(int,int),(int,int)): Your best move
         """
         with self.output:
-            self.output.append_stdout("Calculating best move...")
+            self.output.append_stdout("Calculating best move...\n")
         # print("Calculating best move...")
         best_move, utility = minimax(self, game, time_left, depth=self.search_depth)
 
